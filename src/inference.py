@@ -65,4 +65,4 @@ def run_inference(news):
     # decode sentiment
     sentiments = decode_sentiment(inferences)
 
-    return sentiments
+    return sentiments, inferences
