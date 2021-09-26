@@ -49,7 +49,17 @@ if run_button:
     data = data.rename(columns={0: "date", 1: "title", 2: "link"})
     data["date"] = data["date"].map(lambda x: pd.to_datetime(x))
     data["sentiment"] = sentiments
-    data["sentiment_int"] = inferences  # TODO - map to -1, 0 ans 1
+    data["sentiment_int"] = inferences
+    # map to -1, 0 or 1
+    def map_sent(x):
+        if x == 0:
+            return 1
+        elif x == 1:
+            return -1
+        else:
+            return 0
+
+    data["sentiment_int"] = data["sentiment_int"].map(map_sent)
 
     # write news data on left col from news json file
     for i in range(len(news)):
@@ -86,11 +96,12 @@ if run_button:
     ind_data = pd.DataFrame([sent_dates, sent_scores, n_news_list]).T.rename(columns={0: "date", 1: "day_score", 2: "no_news"})
 
     # chart
-    dates_plot = np.array([pd.to_datetime(date, format="%Y-%m-%d") for date in ind_data.date.values])
+    dates_plot = np.array([pd.to_datetime(date, format="%Y-%m-%d") for date in close_volume.date.values])
     dates_labels =  [str(date)[:-9] for date in dates_plot]
-    volume = close_volume.loc[close_volume.date >= min(dates_plot), "volume"]
-    sentiment_scores = ind_data.day_score.values
-
+    volume = close_volume.loc[:, "volume"]
+    dates_sent = ind_data.loc[ind_data.date >= dates_plot.min()].date.values
+    sentiment_scores = ind_data.loc[ind_data.date >= dates_plot.min()].day_score.values
+    
     fig = plt.figure(figsize=(20,4))
 
     ax1 = plt.subplot(121)
@@ -102,9 +113,9 @@ if run_button:
     neu_idx = sentiment_scores == 0
 
     b = ax1.bar(dates_plot, volume, color="lightblue")
-    s = ax2.scatter(dates_plot[pos_idx], sentiment_scores[pos_idx], color="green")
-    s2 = ax2.scatter(dates_plot[neg_idx], sentiment_scores[neg_idx], color="red")
-    s3 = ax2.scatter(dates_plot[neu_idx], sentiment_scores[neu_idx], color="gray")
+    s = ax2.scatter(dates_sent[pos_idx], sentiment_scores[pos_idx], color="green")
+    s2 = ax2.scatter(dates_sent[neg_idx], sentiment_scores[neg_idx], color="red")
+    s3 = ax2.scatter(dates_sent[neu_idx], sentiment_scores[neu_idx], color="gray")
 
     ax1.set_xticks(dates_plot)
     ax1.set_xticklabels(dates_labels, rotation=90)
@@ -112,6 +123,36 @@ if run_button:
     ax2.set_ylabel("Sentiment score")
 
     ax2.axhline(0, 0, 1, color="gray", linestyle="--")
-    plt.title("Daily sentiment score compared to traded volume")
+    plt.title("Daily sentiment score and traded volume of the last month")
+
+    right_col.pyplot(fig)
+
+    # New chart
+    dates_plot = np.array([pd.to_datetime(date, format="%Y-%m-%d") for date in close_volume.date.values])
+    dates_labels =  [str(date)[:-9] for date in dates_plot]
+    close = close_volume.loc[:, "close"]
+    dates_sent = ind_data.loc[ind_data.date >= dates_plot.min()].date.values
+    sentiment_scores = ind_data.loc[ind_data.date >= dates_plot.min()].day_score.values
+
+    fig = plt.figure(figsize=(20,4))
+
+    ax1 = plt.subplot(121)
+    ax2 = ax1.twinx()
+
+    # conditional color
+    pos_idx = sentiment_scores > 0
+    neg_idx = sentiment_scores < 0
+
+    l = ax1.plot(dates_plot, close, color="black", lw=1.5)
+    b = ax2.bar(dates_sent[pos_idx], sentiment_scores[pos_idx], color="palegreen", alpha=0.5)
+    b2 = ax2.bar(dates_sent[neg_idx], sentiment_scores[neg_idx], color="indianred", alpha=0.5)
+
+    ax1.set_xticks(dates_plot)
+    ax1.set_xticklabels(dates_labels, rotation=90)
+    ax1.set_ylabel("Price Close")
+    ax2.set_ylabel("Sentiment score")
+
+    ax2.axhline(0, 0, 1, color="gray", linestyle="--")
+    plt.title("Daily sentiment score and close price of the last month")
 
     right_col.pyplot(fig)
